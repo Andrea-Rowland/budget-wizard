@@ -19,6 +19,7 @@ request.onsuccess = function(event) {
     // check if app is online, if yest run uploadTransaction() function to send all local db data to api
     if (navigator.onLine) {
         // we haven't created this yet but will soon
+        checkDatabase();
         // uploadTransaction();
     }
 };
@@ -39,3 +40,33 @@ function saveRecord(record) {
     // add record to your store with add method
     transactionObjectStore.add(record);
 }
+
+function checkDatabase() {
+    const transaction = db.transaction(["pending"], "readwrite");
+    const store = transaction.objectStore("pending");
+    const getAll = store.getAll();
+  
+    getAll.onsuccess = function() {
+      if (getAll.result.length > 0) {
+        fetch("/api/transaction/bulk", {
+          method: "POST",
+          body: JSON.stringify(getAll.result),
+          headers: {
+            Accept: "application/json, text/plain, */*",
+            "Content-Type": "application/json"
+          }
+        })
+        .then(response => {        
+          return response.json();
+        })
+        .then(() => {
+          const transaction = db.transaction(["pending"], "readwrite");
+          const store = transaction.objectStore("pending");
+          store.clear();
+        });
+      }
+    };
+  }
+  
+  window.addEventListener("online", checkDatabase);
+  
