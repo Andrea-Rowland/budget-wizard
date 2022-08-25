@@ -1,6 +1,7 @@
 const APP_PREFIX = 'BudgetWiz-';
 const VERSION = 'version_01';
 const CACHE_NAME = APP_PREFIX + VERSION;
+const DATA_CACHE_NAME = 'data-cache-' + VERSION;
 
 // I don't know if I included the right files and if I used the correct paths (absolute vs. relative)
 const FILES_TO_CACHE = [
@@ -25,6 +26,38 @@ self.addEventListener('install', function (e) {
     )
 })
 
+self.addEventListener("fetch", function(event) {
+  if (event.request.url.includes("/api/")) {
+    event.respondWith(
+      caches.open(DATA_CACHE_NAME).then(cache => {
+        return fetch(event.request)
+          .then(response => {
+            if (response.status === 200) {
+              cache.put(event.request.url, response.clone());
+            }
+
+            return response;
+          })
+          .catch(err => {
+            return cache.match(event.request);
+          });
+      }).catch(err => console.log(err))
+    );
+    return;
+}
+event.respondWith(
+  fetch(event.request).catch(function() {
+    return caches.match(event.request).then(function(response) {
+      if (response) {
+        return response;
+      } else if (event.request.headers.get("accept").includes("text/html")) {
+        return caches.match("/");
+      }
+    });
+  })
+);
+});
+
 self.addEventListener('activate', function (e) {
     e.waitUntil(
         caches.keys().then(function (keyList) {
@@ -45,37 +78,8 @@ self.addEventListener('activate', function (e) {
     );
 });
 
-self.addEventListener("fetch", function(event) {
-    if (event.request.url.includes("/api/")) {
-      event.respondWith(
-        caches.open(DATA_CACHE_NAME).then(cache => {
-          return fetch(event.request)
-            .then(response => {
-              if (response.status === 200) {
-                cache.put(event.request.url, response.clone());
-              }
-  
-              return response;
-            })
-            .catch(err => {
-              return cache.match(event.request);
-            });
-        }).catch(err => console.log(err))
-      );
-      return;
-  }
 
-  event.respondWith(
-    fetch(event.request).catch(function() {
-      return caches.match(event.request).then(function(response) {
-        if (response) {
-          return response;
-        } else if (event.request.headers.get("accept").includes("text/html")) {
-          return caches.match("/");
-        }
-      });
-    })
-  );
-});
+
+ 
 
   
